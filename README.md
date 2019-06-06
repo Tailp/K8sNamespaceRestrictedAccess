@@ -21,4 +21,4 @@ In Bash terminal
 
 * python ConstructAccess.py
 
-Provide the desired name of the namespace.
+Then provide the desired name of the namespace.
