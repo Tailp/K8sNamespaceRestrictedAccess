@@ -1,7 +1,7 @@
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: NAMESPACE_NAME-user-full-access
+  name: NAMESPACE_USERNAME-full-access
   namespace: NAMESPACE_NAME
 rules:
 - apiGroups: ["", "extensions", "apps"]

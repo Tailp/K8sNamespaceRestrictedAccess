@@ -64,23 +64,9 @@ def Mergefiles(filenames,outfilename):
 				outfile.write(infile.read())
 				outfile.write("\n")
 
-
-if __name__ == '__main__':
-	NAMESPACENAME = raw_input("Name for namespace:\n")
-	KUBERNETES_API_ENDPOINT = raw_input("Ip address of the preferred cluster, also known as API endpoint(check k8s config file, default path: ~/.kube/config, check for 'cluster' then 'server', example format: https://31.230.155.182):\n")
-	CLUSTER_NAME = raw_input("Name of the preferred cluster(check k8s config file, default path: ~/.kube/config, check for 'cluster' then 'name'):\n")
-	## Edit with ruamel.yam and merge the file to access.yaml.
-	Mergefiles(['./forms/sa.yaml', './forms/role.yaml', './forms/rolebinding.yaml'],"access.yaml")
-	## Replace NAMESPACENAME in access.yaml with input provided.
-	ReplaceWithInput("access.yaml",NAMESPACENAME,"NAMESPACE_NAME")
-	## Create namespace and then apply the access.yaml file 
-	## to create a service account bound to that namespace
-	print(ExecGetOutput(["kubectl","create","namespace",NAMESPACENAME]))
-	print(ExecGetOutput(["kubectl","create","-f","access.yaml"]))
-
-	## Collect data
+# This will create a config file using the provided name of namespace and username of the service account.
+def CreateConfig(NAMESPACENAME,NAMESPACE_USERNAME):
 	# Get name of the secret format "mynamespace-user-token-xxxxx" of the created service account
-	NAMESPACE_USERNAME = NAMESPACENAME + "-user"
 	SECRETNAME = ExecGetOutput(["kubectl","get","sa",NAMESPACE_USERNAME,"-n",NAMESPACENAME,"-o","jsonpath='{.secrets[0].name}'"])
 	#print(SECRETNAME)
 	# Get service account token
@@ -92,22 +78,85 @@ if __name__ == '__main__':
 	CERTIFICATE = ExecGetOutput(cmdCERT,True)
 	#print(CERTIFICATE)
 	# Get IP address, NAME of the cluster, THIS MIGHT BE A PROBLEM IF THERE ARE MORE THAN ONE CLUSTER SO MAYBE THIS SHOULD BE SUPPLIED INSTEAD.
-	#KUBERNETES_API_ENDPOINT = ExecGetOutput(["kubectl","config","view","--minify","-o","jsonpath='{.clusters[0].cluster.server}'"])
+	KUBERNETES_API_ENDPOINT = ExecGetOutput(["kubectl","config","view","--minify","-o","jsonpath='{.clusters[0].cluster.server}'"])
 	#print(KUBERNETES_API_ENDPOINT)
-	#CLUSTER_NAME = ExecGetOutput(["kubectl","config","view","--minify","-o","jsonpath='{.clusters[0].name}'"])
+	CLUSTER_NAME = ExecGetOutput(["kubectl","config","view","--minify","-o","jsonpath='{.clusters[0].name}'"])
 	#print(CLUSTER_NAME)
 
 	# Insert provided value in kubeconfigform
-	ExecGetOutput(["cp","./forms/kubeconfigform","kubeconfig"])
-	ReplaceWithInput("kubeconfig",NAMESPACENAME,"NAMESPACE_NAME")
-	ReplaceWithInput("kubeconfig",NAMESPACE_USERNAME,"NAMESPACE_USERNAME")
-	ReplaceWithInput("kubeconfig",TOKEN,"TOKEN")
-	ReplaceWithInput("kubeconfig",CERTIFICATE,"CERTIFICATE")
-	ReplaceWithInput("kubeconfig",KUBERNETES_API_ENDPOINT,"KUBERNETES_API_ENDPOINT")
-	ReplaceWithInput("kubeconfig",CLUSTER_NAME,"CLUSTER_NAME")
+	configfilename = NAMESPACE_USERNAME + "config"
+	ExecGetOutput(["cp","./forms/kubeconfigform",configfilename])
+	ReplaceWithInput(configfilename,NAMESPACENAME,"NAMESPACE_NAME")
+	ReplaceWithInput(configfilename,NAMESPACE_USERNAME,"NAMESPACE_USERNAME")
+	ReplaceWithInput(configfilename,TOKEN,"TOKEN")
+	ReplaceWithInput(configfilename,CERTIFICATE,"CERTIFICATE")
+	ReplaceWithInput(configfilename,KUBERNETES_API_ENDPOINT,"KUBERNETES_API_ENDPOINT")
+	ReplaceWithInput(configfilename,CLUSTER_NAME,"CLUSTER_NAME")
+
+	#Success message
+	print("SYSTEM MESSAGE:")
+	print("Config file for namespace " + NAMESPACENAME + " at cluster " + CLUSTER_NAME + " is created\n")
+
+# This create namespace, service account, role , rolebindings and create a config file based on those infos.
+def GenenerateNewConfig(NAMESPACENAME,NAMESPACE_USERNAME,action="create"):
+	#NAMESPACENAME = raw_input("Name for namespace:\n")
+	#KUBERNETES_API_ENDPOINT = raw_input("Ip address of the preferred cluster, also known as API endpoint(check k8s config file, default path: ~/.kube/config, check for 'cluster' then 'server', example format: https://31.230.155.182):\n")
+	#CLUSTER_NAME = raw_input("Name of the preferred cluster(check k8s config file, default path: ~/.kube/config, check for 'cluster' then 'name'):\n")
+	## Might be edited with ruamel.yam first and merge the file to access.yaml.
+	Mergefiles(['./forms/sa.yaml', './forms/role.yaml', './forms/rolebinding.yaml'],"access.yaml")
+	## Replace NAMESPACENAME in access.yaml with input provided.
+	ReplaceWithInput("access.yaml",NAMESPACENAME,"NAMESPACE_NAME")
+	ReplaceWithInput("access.yaml",NAMESPACE_USERNAME,"NAMESPACE_USERNAME")
+	## Create namespace and then apply the access.yaml file 
+	## to create a service account bound to that namespace
+	if(action!="createExisted"):
+		print(ExecGetOutput(["kubectl","create","namespace",NAMESPACENAME]))
+	print(ExecGetOutput(["kubectl","create","-f","access.yaml"]))
+	
+	CreateConfig(NAMESPACENAME,NAMESPACE_USERNAME)
 
 	# Cleaning up 
 	ExecGetOutput(["rm","-rf","access.yaml"])
+
+
+def MergeConfigs(files):
+	cmd = "export KUBECONFIG=mergedconfig"
+	for name in files:
+		cmd = cmd + ":" + name
+	os.environ["KUBECONFIG"] = cmd
+	cmd = "kubectl config view --flatten  > mergedconfig"
+	ExecGetOutput(cmd,True)
+	os.environ["KUBECONFIG"] = "$HOME/.kube/config"
+
+
+# IMPORTANT: this function is used for automate the procedure of deleting an user created for an 
+# already existed namespace by the method in this script
+# What it will remove is serviceaccount,role,rolebindings.
+def DeleteCreated(NAMESPACENAME,NAMESPACE_USERNAME):
+	ExecGetOutput(["kubectl","delete","sa", NAMESPACE_USERNAME])
+	ExecGetOutput(["kubectl","delete","role",NAMESPACE_USERNAME + "-full-access"])
+	ExecGetOutput(["kubectl", "delete", "rolebindings", NAMESPACE_USERNAME + "-view"])
+
+
+	
+if __name__ == '__main__':
+	if sys.argv[1]=="merge":
+		MergeConfigs(list(sys.argv[2:]))
+	elif sys.argv[1]=="create":
+		for elem in sys.argv[2:]:
+			NAMESPACE_USERNAME = elem + "-user"
+			GenenerateNewConfig(elem,NAMESPACE_USERNAME)
+	elif sys.argv[1]=="createExisted":
+		for elem in sys.argv[3:]:
+			GenenerateNewConfig(sys.argv[2],elem,sys.argv[1])
+	elif sys.argv[1]=="recreate":
+		CreateConfig(sys.argv[2],sys.argv[3])
+	elif sys.argv[1]=="DeleteCreated":
+		DeleteCreated(sys.argv[2],sys.argv[3])
+
+
+
+	
 
 
 

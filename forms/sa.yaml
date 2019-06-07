@@ -1,5 +1,5 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: NAMESPACE_NAME-user
+  name: NAMESPACE_USERNAME
   namespace: NAMESPACE_NAME
