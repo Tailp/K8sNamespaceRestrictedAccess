@@ -11,9 +11,9 @@ This is a script with several functions for easily managing Kubernetes config fi
 Q: How to set config files ?
 
 A:In bash terminal (Note that you have to cd into the same folder as the config file)
-* export KUBECONFIG="configfilename"
+The safest way is to replace directly your config file with the config file in $HOME/.kube/config with this new file(Do keep a copy of the old one first in this case)
 
-Alternatively you can also replace the config file in $HOME/.kube/config with this new file(Do keep a copy of the old one first in this case)
+There is also this other way with export KUBECONFIG="configfilename", but the variable rather being updated or expired too quickly so you will get an anonymous authentication error as if the configfilename has been unloaded.
 
 Q: How to re-set the origin config files?
 
