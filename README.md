@@ -13,6 +13,8 @@ Q: How to set config files ?
 A:In bash terminal (Note that you have to cd into the same folder as the config file)
 * export KUBECONFIG="configfilename"
 
+Alternatively you can also replace the config file in $HOME/.kube/config with this new file(Do keep a copy of the old one first in this case)
+
 Q: How to re-set the origin config files?
 
 A:In bash terminal, Assumingly you have not move aroung you .kube folder or using a entirely different system than linux-based, the default path for your original config file should always be at $HOME/.kube/config
