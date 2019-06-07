@@ -11,7 +11,7 @@ This is a script with several functions for easily managing Kubernetes config fi
 How to set config files ?
 
 In bash terminal (Note that you have to cd into the same folder as the config file)
-* export KUBECONFIG="<configfile>"
+* export KUBECONFIG="configfilename"
 
 How to switch namespace or cluster, also know as switching context ?
 
@@ -20,7 +20,7 @@ In bash terminal
 
 This will give you all available contexts for your config file to switch to. Note that only "those" contexts in your config file so if you want to access a cluster or a namespace not in your config file you have to acquire the config file containing that context(ask the guy who can give you the config file).
 
-* kubectl config set-context <context name> 
+* kubectl config set-context "context name"
 
 Context name can be gotten from the previous command, check name column
 
