@@ -134,8 +134,8 @@ def MergeConfigs(files):
 # What it will remove is serviceaccount,role,rolebindings.
 def DeleteCreated(NAMESPACENAME,NAMESPACE_USERNAME):
 	ExecGetOutput(["kubectl","delete","sa", NAMESPACE_USERNAME])
-	ExecGetOutput(["kubectl","delete","role",NAMESPACE_USERNAME + "-full-access"])
-	ExecGetOutput(["kubectl", "delete", "rolebindings", NAMESPACE_USERNAME + "-view"])
+	ExecGetOutput("kubectl delete role " + NAMESPACE_USERNAME + "-full-access",True)
+	ExecGetOutput("kubectl delete rolebindings "+ NAMESPACE_USERNAME + "-view",True)
 
 
 
@@ -151,8 +151,9 @@ if __name__ == '__main__':
 			GenenerateNewConfig(sys.argv[2],elem,sys.argv[1])
 	elif sys.argv[1]=="recreate":
 		CreateConfig(sys.argv[2],sys.argv[3])
-	elif sys.argv[1]=="deleteCreated":
-		DeleteCreated(sys.argv[2],sys.argv[3])
+	elif sys.argv[1]=="delete":
+		for elem in sys.argv[3:]:
+			DeleteCreated(sys.argv[2],elem)
 
 
 
