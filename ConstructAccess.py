@@ -101,7 +101,7 @@ def CreateConfig(NAMESPACENAME,NAMESPACE_USERNAME):
 def GenenerateNewConfig(NAMESPACENAME,NAMESPACE_USERNAME,action="create"):
 	#NAMESPACENAME = raw_input("Name for namespace:\n")
 	#KUBERNETES_API_ENDPOINT = raw_input("Ip address of the preferred cluster, also known as API endpoint(check k8s config file, default path: ~/.kube/config, check for 'cluster' then 'server', example format: https://31.230.155.182):\n")
-	#CLUSTER_NAME = raw_input("Name of the preferred cluster(check k8s config file, default path: ~/.kube/config, check for 'cluster' then 'name'):\n")
+	#CLUSTER_NAME = raw_input("Name of the preferred cluster(ch 	eck k8s config file, default path: ~/.kube/config, check for 'cluster' then 'name'):\n")
 	## Might be edited with ruamel.yam first and merge the file to access.yaml.
 	Mergefiles(['./forms/sa.yaml', './forms/role.yaml', './forms/rolebinding.yaml'],"access.yaml")
 	## Replace NAMESPACENAME in access.yaml with input provided.
@@ -138,7 +138,7 @@ def DeleteCreated(NAMESPACENAME,NAMESPACE_USERNAME):
 	ExecGetOutput(["kubectl", "delete", "rolebindings", NAMESPACE_USERNAME + "-view"])
 
 
-	
+
 if __name__ == '__main__':
 	if sys.argv[1]=="merge":
 		MergeConfigs(list(sys.argv[2:]))
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 			GenenerateNewConfig(sys.argv[2],elem,sys.argv[1])
 	elif sys.argv[1]=="recreate":
 		CreateConfig(sys.argv[2],sys.argv[3])
-	elif sys.argv[1]=="DeleteCreated":
+	elif sys.argv[1]=="deleteCreated":
 		DeleteCreated(sys.argv[2],sys.argv[3])
 
 
