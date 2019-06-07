@@ -8,21 +8,21 @@ This is a script with several functions for easily managing Kubernetes config fi
 
 # Important to know before reading more
 
-How to set config files ?
+Q: How to set config files ?
 
-In bash terminal (Note that you have to cd into the same folder as the config file)
+A:In bash terminal (Note that you have to cd into the same folder as the config file)
 * export KUBECONFIG="configfilename"
 
-How to switch namespace or cluster, also know as switching context ?
+Q: How to switch namespace or cluster, also know as switching context ?
 
-In bash terminal 
+A: In bash terminal 
 * kubectl config get-contexts 
 
 This will give you all available contexts for your config file to switch to. Note that only "those" contexts in your config file so if you want to access a cluster or a namespace not in your config file you have to acquire the config file containing that context(ask the guy who can give you the config file).
 
-* kubectl config set-context context-name
+* kubectl config set-context contextname
 
-context-name can be gotten from the previous command, check name column
+contextname can be gotten from the previous command, check name column
 
 
 # Dependencies
@@ -43,7 +43,7 @@ This requires the following to work.
 
 # User manual
 
-In Bash terminal 
+IMPORTANT: When you use these command it will create the namespaces associated with the current cluster context. So if you have cluster1, cluster2, cluster3 and your namespace is on cluster1 then the functions will take the information from cluster1. So If you want to create a namespace on cluster2 you have to switch context to cluster2 first, then do these commands below.
 
 ## Creating multiple namespace with full access within the namespace
 
