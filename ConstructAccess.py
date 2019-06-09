@@ -2,7 +2,7 @@
 import subprocess
 import sys # To do File input output operations
 import os # for certain command for saving as file
-from collections import OrderedDict ## For using Ordered dict
+from collections import OrderedDict # For using Ordered dict
 from ruamel.yaml import YAML #To create YAML File and Read YAML File
 
 ## Global variable
@@ -98,12 +98,13 @@ def CreateConfig(NAMESPACENAME,NAMESPACE_USERNAME):
 	print("Config file for namespace " + NAMESPACENAME + " at cluster " + CLUSTER_NAME + " is created\n")
 
 # This create namespace, service account, role , rolebindings and create a config file based on those infos.
-def GenenerateNewConfig(NAMESPACENAME,NAMESPACE_USERNAME,action="create"):
+# Accesskind is either full-access or Read-only
+def GenenerateNewConfig(NAMESPACENAME,NAMESPACE_USERNAME,action,accesskind):
 	#NAMESPACENAME = raw_input("Name for namespace:\n")
 	#KUBERNETES_API_ENDPOINT = raw_input("Ip address of the preferred cluster, also known as API endpoint(check k8s config file, default path: ~/.kube/config, check for 'cluster' then 'server', example format: https://31.230.155.182):\n")
 	#CLUSTER_NAME = raw_input("Name of the preferred cluster(ch 	eck k8s config file, default path: ~/.kube/config, check for 'cluster' then 'name'):\n")
 	## Might be edited with ruamel.yam first and merge the file to access.yaml.
-	Mergefiles(['./forms/sa.yaml', './forms/role.yaml', './forms/rolebinding.yaml'],"access.yaml")
+	Mergefiles(['./forms/sa.yaml', './forms/role-' + accesskind +'.yaml', './forms/rolebinding-' + accesskind +'.yaml'],"access.yaml")
 	## Replace NAMESPACENAME in access.yaml with input provided.
 	ReplaceWithInput("access.yaml",NAMESPACENAME,"NAMESPACE_NAME")
 	ReplaceWithInput("access.yaml",NAMESPACE_USERNAME,"NAMESPACE_USERNAME")
@@ -118,7 +119,7 @@ def GenenerateNewConfig(NAMESPACENAME,NAMESPACE_USERNAME,action="create"):
 	# Cleaning up 
 	ExecGetOutput(["rm","-rf","access.yaml"])
 
-
+# Given the config files this will merge everything and output it to "KUBECONFIG"
 def MergeConfigs(files):
 	cmd = "export KUBECONFIG=mergedconfig"
 	for name in files:
@@ -132,10 +133,10 @@ def MergeConfigs(files):
 # IMPORTANT: this function is used for automate the procedure of deleting an user created for an 
 # already existed namespace by the method in this script
 # What it will remove is serviceaccount,role,rolebindings.
-def DeleteCreated(NAMESPACENAME,NAMESPACE_USERNAME):
-	ExecGetOutput(["kubectl","delete","sa", NAMESPACE_USERNAME])
-	ExecGetOutput("kubectl delete role " + NAMESPACE_USERNAME + "-full-access",True)
-	ExecGetOutput("kubectl delete rolebindings "+ NAMESPACE_USERNAME + "-view",True)
+def DeleteCreated(NAMESPACENAME,NAMESPACE_USERNAME,accesskind):
+	print(ExecGetOutput("kubectl delete sa " + NAMESPACE_USERNAME  + " -n " + NAMESPACENAME,True))
+	print(ExecGetOutput("kubectl delete role " + NAMESPACE_USERNAME + "-" + accesskind + " -n " + NAMESPACENAME,True))
+	print(ExecGetOutput("kubectl delete rolebindings "+ NAMESPACE_USERNAME + " -n " + NAMESPACENAME,True))
 
 
 
@@ -143,17 +144,18 @@ if __name__ == '__main__':
 	if sys.argv[1]=="merge":
 		MergeConfigs(list(sys.argv[2:]))
 	elif sys.argv[1]=="create":
-		for elem in sys.argv[2:]:
+		for elem in sys.argv[3:]:
 			NAMESPACE_USERNAME = elem + "-user"
-			GenenerateNewConfig(elem,NAMESPACE_USERNAME)
+			GenenerateNewConfig(elem,NAMESPACE_USERNAME,sys.argv[1],sys.argv[2])
 	elif sys.argv[1]=="createExisted":
-		for elem in sys.argv[3:]:
-			GenenerateNewConfig(sys.argv[2],elem,sys.argv[1])
+		for elem in sys.argv[4:]:
+			GenenerateNewConfig(sys.argv[2],elem,sys.argv[1],sys.argv[3])
 	elif sys.argv[1]=="recreate":
-		CreateConfig(sys.argv[2],sys.argv[3])
-	elif sys.argv[1]=="delete":
 		for elem in sys.argv[3:]:
-			DeleteCreated(sys.argv[2],elem)
+			CreateConfig(sys.argv[2],elem)
+	elif sys.argv[1]=="delete":
+		for elem in sys.argv[4:]:
+			DeleteCreated(sys.argv[2],elem,sys.argv[3])
 
 
 

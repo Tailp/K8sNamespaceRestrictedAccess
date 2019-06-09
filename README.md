@@ -50,17 +50,23 @@ This requires the following to work.
 
 IMPORTANT: When you use these command it will create the namespaces associated with the current cluster context. So if you have cluster1, cluster2, cluster3 and your namespace is on cluster1 then the functions will take the information from cluster1. So If you want to create a namespace on cluster2 you have to switch context to cluster2 first, then do these commands below.
 
-## Generating multiple config files for multiple namespaces with full access within the namespaces
+Accesskind:
+* "full-access" the user will be able to do anything excluding security stuffs like creating new namespaces, creating roles, service accounts. 
+* "read-only" Like full access but here the user can only get,watch or list. 
 
-* python ConstructAccess.py create namespace1 namespace2 namespace3 .. namespaceN
+Also here I assume that it's constrained RABAC, meaning that we cannot have a situation like one person have both read-only and full-access since there is no point. If the user want to elevate themselves then full-access is enough.
 
-This will create N config files for N different namespaces to be used. Also, the usernames created by this method is according to the format "namespaceN-user", so if your namespace is called tailp, then it will be "tailp-user" as username.
+## Generating multiple config files for multiple namespaces with a particular accesskind within the namespaces
+
+* python ConstructAccess.py create accesskind namespace1 namespace2 namespace3 .. namespaceN
+
+This will create N config files for N different namespaces to be used. Also, the usernames created by this method is according to the format "namespaceN-user", so if your namespace is called tailp, then it will be "tailp-user" as username. 
 
 ## Generating multiple users configs for an already existed namespace
 
-* python ConstructAccess.py createExisted EXISTED_NAMESPACE_NAME username1 username2 username3 .. usernameN
+* python ConstructAccess.py createExisted EXISTED_NAMESPACE_NAME accesskind username1 username2 username3 .. usernameN
 
-This will create N config files for N different users within the EXISTED_NAMESPACE_NAME. Note that each username should be unique and not the same as other already existed. 
+This will create N config files for N different users within the EXISTED_NAMESPACE_NAME with the specified accesskind. Note that each username should be unique and not the same as other already existed. 
 
 You can check if your username is unique by looking up 
 * kubectl get sa 
@@ -73,7 +79,7 @@ This will list all the existed namespaces within your current cluster with your 
 
 ## Deleting user
 So this will be deleting service accounts together with their role and rolebinding in that namespace created previously by the generating methods above.
-* python ConstructAccess.py delete EXISTED_NAMESPACE_NAME username1 username2 ... usernameN
+* python ConstructAccess.py delete EXISTED_NAMESPACE_NAME accesskind username1 username2 ... usernameN
 
 check for EXISTED_NAMESPACE_NAME with 
 

@@ -1,7 +1,7 @@
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: NAMESPACE_USERNAME
+  name: NAMESPACE_USERNAME-view
   namespace: NAMESPACE_NAME
 subjects:
 - kind: ServiceAccount
