@@ -1,14 +1,14 @@
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: NAMESPACE_USERNAME-full-access
+  name: NAMESPACE_USERNAME-viewer
   namespace: NAMESPACE_NAME
 rules:
-- apiGroups: ["", "extensions", "apps"]
+- apiGroups: ["", "extensions", "apps","rbac.authorization.k8s.io"]
   resources: ["*"]
-  verbs: ["*"]
+  verbs: ["get","list","watch"]
 - apiGroups: ["batch"]
   resources:
   - jobs
   - cronjobs
-  verbs: ["*"]
+  verbs: ["get","list","watch"]

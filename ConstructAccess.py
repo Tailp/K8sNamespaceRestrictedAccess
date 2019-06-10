@@ -28,33 +28,8 @@ def ReplaceWithInput(filename,input,stringtoreplace):
 	# Write the file out again
 	with open(filename, 'w') as file:
 	  file.write(filedata)
-
-# Using ruamel library to edit the yaml file by element.
-# Possible operations: update value, delete element, append element.
-def EditYaml(filename,input,stringtoreplace):
-	inp_fo = open(filename).read()  ## Read the Yaml File
-
-	yaml = YAML() ## Load the yaml object
-
-	code = yaml.load(inp_fo) #Load content of YAML file to yaml object
-	#print(code['contexts'])
-	#print(code)
-	#code['notifications']['email']['recipients'] = [sys.argv[1]] #Update 
-	## add new context example with ruamel.yaml.
-	#code['contexts'].append({'context':{"cluster":"CLUSTER_NAME","namespace":"NAMESPACE_NAME","user":"NAMESPACE_USERNAME"},"name":"NAMESPACE_NAME"})
-	#code['contexts']['context'].insert(0,"cluster","CLUSTER_NAME")
-	#with file(filename, 'w') as f:
-	#	yaml.dump(code, f) 
-
-	#Yaml file with new parameter in object
-
-	#inp_fo2 = open(filename,"w") #Open the file for Write
-
-	#yaml.dump(code,inp_fo2) ##Write to file with new parameter
-
-	#inp_fo2.close() ## close the file
 	
-# Merge yaml file together separating with ---, this is meant for constructing the access.yaml by merging
+# Merge yaml file together separating with ---, this is meant for constructing the access-nsname-username-accesskind.yaml by merging
 # sa.yaml, role.yaml and rolebinding.yaml
 def Mergefiles(filenames,outfilename):
 	with open(outfilename, 'w') as outfile:
@@ -98,26 +73,58 @@ def CreateConfig(NAMESPACENAME,NAMESPACE_USERNAME):
 	print("Config file for namespace " + NAMESPACENAME + " at cluster " + CLUSTER_NAME + " is created\n")
 
 # This create namespace, service account, role , rolebindings and create a config file based on those infos.
-# Accesskind is either full-access or Read-only
-def GenenerateNewConfig(NAMESPACENAME,NAMESPACE_USERNAME,action,accesskind):
-	#NAMESPACENAME = raw_input("Name for namespace:\n")
-	#KUBERNETES_API_ENDPOINT = raw_input("Ip address of the preferred cluster, also known as API endpoint(check k8s config file, default path: ~/.kube/config, check for 'cluster' then 'server', example format: https://31.230.155.182):\n")
-	#CLUSTER_NAME = raw_input("Name of the preferred cluster(ch 	eck k8s config file, default path: ~/.kube/config, check for 'cluster' then 'name'):\n")
-	## Might be edited with ruamel.yam first and merge the file to access.yaml.
-	Mergefiles(['./forms/sa.yaml', './forms/role-' + accesskind +'.yaml', './forms/rolebinding-' + accesskind +'.yaml'],"access.yaml")
+# accesskind is either admin, user or viewer (check repo for more detailed what they do)
+def GenenerateNewConfig(NAMESPACENAME,NAMESPACE_USERNAME,action,accesskind="",rolefilepath="",resourcelimitfilepath=""):
+	# copy from the forms then replace the name of role referred in rolebinding.yaml.
+	ExecGetOutput(["cp","./forms/rolebinding.yaml","./"])
+
+	# use ruamel.yaml to take the name field from role.yaml to rolebindings
+	if rolefilepath=="":
+		rolefilepath = './forms/role-' + accesskind +'.yaml'  ## Read the Yaml File
+		accessfilename = "access-" + NAMESPACENAME + "-" + NAMESPACE_USERNAME + "-" + accesskind +".yaml"
+	else:
+		accessfilename = "access-" + NAMESPACENAME + "-" + NAMESPACE_USERNAME + "-Custom"  +".yaml"
+	file1 = open(rolefilepath).read()
+	yaml = YAML() ## Load the yaml object
+
+	code1 = yaml.load(file1) #Load content of YAML file to yaml object
+
+	file2 = open("rolebinding.yaml").read()  ## Read the Yaml File
+
+	yaml = YAML() ## Load the yaml object
+
+	code2 = yaml.load(file2) #Load content of YAML file to yaml object
+
+	code2["roleRef"]["name"] = code1["metadata"]["name"]
+
+	writefile = open("rolebinding.yaml", "w")
+	yaml.dump(code2,writefile)
+	writefile.close()
+
+	# After editing with ruamel.yaml merge everything to a single file and apply.
+	Mergefiles(['./forms/sa.yaml', rolefilepath, 'rolebinding.yaml'],accessfilename)
+
 	## Replace NAMESPACENAME in access.yaml with input provided.
-	ReplaceWithInput("access.yaml",NAMESPACENAME,"NAMESPACE_NAME")
-	ReplaceWithInput("access.yaml",NAMESPACE_USERNAME,"NAMESPACE_USERNAME")
+	ReplaceWithInput(accessfilename,NAMESPACENAME,"NAMESPACE_NAME")
+	ReplaceWithInput(accessfilename,NAMESPACE_USERNAME,"NAMESPACE_USERNAME")
+
+
 	## Create namespace and then apply the access.yaml file 
 	## to create a service account bound to that namespace
-	if(action!="createExisted"):
+	actioncheck = ["createEx","createExCustomRole"]
+	if(action not in actioncheck):
 		print(ExecGetOutput(["kubectl","create","namespace",NAMESPACENAME]))
-	print(ExecGetOutput(["kubectl","create","-f","access.yaml"]))
-	
-	CreateConfig(NAMESPACENAME,NAMESPACE_USERNAME)
+	print(ExecGetOutput(["kubectl","create","-f",accessfilename]))
 
+	# We'll now make a directory to contain all access-file for the namespace.
+	# If the folder does not already exist then we create one and then move the accessfile inside.
+	if(ExecGetOutput('[ -d "/path/to/dir" ] && echo "exist"',True)!="exist"):
+		ExecGetOutput("mkdir " + NAMESPACENAME,True)
+	ExecGetOutput("mv " + accessfilename + " ./" + NAMESPACENAME,True)
+
+	CreateConfig(NAMESPACENAME,NAMESPACE_USERNAME)
 	# Cleaning up 
-	ExecGetOutput(["rm","-rf","access.yaml"])
+	ExecGetOutput(["rm","-rf","sa.yaml", "role.yaml", "rolebinding.yaml"])
 
 # Given the config files this will merge everything and output it to "KUBECONFIG"
 def MergeConfigs(files):
@@ -129,33 +136,52 @@ def MergeConfigs(files):
 	ExecGetOutput(cmd,True)
 	os.environ["KUBECONFIG"] = "$HOME/.kube/config"
 
+def LimitResources(resourcelimitfilepath,namespacename):
+	print(ExecGetOutput("kubectl apply -f " + resourcelimitfilepath + " -n " + namespacename,True))
+	ExecGetOutput("cp " + resourcelimitfilepath + " ./" + namespacename,True)
 
-# IMPORTANT: this function is used for automate the procedure of deleting an user created for an 
-# already existed namespace by the method in this script
-# What it will remove is serviceaccount,role,rolebindings.
-def DeleteCreated(NAMESPACENAME,NAMESPACE_USERNAME,accesskind):
-	print(ExecGetOutput("kubectl delete sa " + NAMESPACE_USERNAME  + " -n " + NAMESPACENAME,True))
-	print(ExecGetOutput("kubectl delete role " + NAMESPACE_USERNAME + "-" + accesskind + " -n " + NAMESPACENAME,True))
-	print(ExecGetOutput("kubectl delete rolebindings "+ NAMESPACE_USERNAME + " -n " + NAMESPACENAME,True))
 
+# This is because we want to avoid a list of if , elif and else.
+# Syntax "python ConstructAccess.py merge file1 file2 file3"
+def Case1():
+	MergeConfigs(list(sys.argv[2:]))
+# Syntax "python ConstructAccess.py create accesskind namespace1 namespace2 ... namespaceN"
+def Case2():
+	for elem in sys.argv[3:]:
+		NAMESPACE_USERNAME = elem + "-user"
+		GenenerateNewConfig(elem,NAMESPACE_USERNAME,sys.argv[1],sys.argv[2])
+# Syntax "python ConstructAccess.py createEx namespacename accesskind username1 username2 ... usernameN"
+def Case3():
+	for elem in sys.argv[4:]:
+		GenenerateNewConfig(sys.argv[2],elem,sys.argv[1],sys.argv[3])
+# Syntax "python ConstructAccess.py createCustomRole <path to file role.yaml> namespace1 namespace2 .. namespaceN"
+def Case4():
+	for elem in sys.argv[3:]:
+		NAMESPACE_USERNAME = elem + "-user"
+		GenenerateNewConfig(elem,NAMESPACE_USERNAME,sys.argv[1],rolefilepath=sys.argv[2])
+# Syntax "python ConstructAccess.py createExCustomRole namespacename <path to file role.yaml> username1 username2 ... usernameN"
+def Case5():
+	for elem in sys.argv[4:]:
+		GenenerateNewConfig(sys.argv[2],elem,sys.argv[1],rolefilepath=sys.argv[3])
+# Syntax "python ConstructAccess.py recreate NAMSPACE_NAME username1 username2 username3 ... usernameN"
+def Case6():
+	for elem in sys.argv[3:]:
+		CreateConfig(sys.argv[2],elem)
+# Syntax "python ConstructAccess.py delete NAMESPACE"
+def Case7():
+	for elem in sys.argv[4:]:
+		DeleteCreated(sys.argv[2],elem,sys.argv[3])
+# Syntax "python ConstructAccess.py limitRes ResourceQuotafilepath namespace1 namespace2 namespace3 ... namespaceN"
+def Case8():
+	print(sys.argv[2])
+	for elem in sys.argv[3:]:
+		LimitResources(sys.argv[2],elem)
 
 
 if __name__ == '__main__':
-	if sys.argv[1]=="merge":
-		MergeConfigs(list(sys.argv[2:]))
-	elif sys.argv[1]=="create":
-		for elem in sys.argv[3:]:
-			NAMESPACE_USERNAME = elem + "-user"
-			GenenerateNewConfig(elem,NAMESPACE_USERNAME,sys.argv[1],sys.argv[2])
-	elif sys.argv[1]=="createExisted":
-		for elem in sys.argv[4:]:
-			GenenerateNewConfig(sys.argv[2],elem,sys.argv[1],sys.argv[3])
-	elif sys.argv[1]=="recreate":
-		for elem in sys.argv[3:]:
-			CreateConfig(sys.argv[2],elem)
-	elif sys.argv[1]=="delete":
-		for elem in sys.argv[4:]:
-			DeleteCreated(sys.argv[2],elem,sys.argv[3])
+	Cases = {"merge":Case1,"create":Case2,"createEx":Case3,"createCustomRole":Case4,
+	"createExCustomRole":Case5,"recreate":Case6,"delete":Case7,"limitRes":Case8}
+	Cases[sys.argv[1]]()
 
 
 
